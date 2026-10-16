@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import express from "express";
 import fs from "fs";
-import type { Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 import type { ServerResponse } from "http";
 
 // подгрузка переменных окружения
@@ -40,7 +40,7 @@ function commit(next: Project[]): void {
 function generateId() {
   let id: string;
   do {
-    id = crypto.randomBytes(256).toString("hex");
+    id = crypto.randomBytes(8).toString("hex");
   } while (projects.some((p) => p.id === id));
   return id;
 }
@@ -50,7 +50,7 @@ const isObject = (v: any) =>
 
 function requireBody(req: Request) {
   if (!isObject(req.body))
-    throw new Error("404. Тело запроса должно быть JSON-объектом");
+    throw new Error("400. Тело запроса должно быть JSON-объектом");
   return req.body;
 }
 
@@ -185,9 +185,11 @@ app.use((req, res, next) => {
     "Access-Control-Allow-Methods": "GET, PUT, DELETE, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
   });
-  if (req.method === "OPTIONS") return res.status(204).end(); // preflight
+  if (req.method === "OPTIONS") return res.status(204).end();
   next();
 });
+
+app.use(express.json({ limit: "16kb" }));
 
 app.param("id", (req, res, next, id) => {
   if (!ID_RE.test(id)) return next(new Error(`400. Недопустимый id`));
@@ -209,29 +211,35 @@ app
 
 app.route("/events").get(openEvents).all(notAllowed("GET"));
 
-// 5. Ничего не подошло → 404.
 app.use((req, res) => {
   res.status(404).json({ error: "Путь не найден" });
 });
 
-// 6. Обработчик ошибок (четыре аргумента — так Express его узнаёт).
-// app.use((err, req, res, next) => {
-//   if (res.headersSent) return next(err);
-//   if (err instanceof Error) {
-//     return res.status(err.status).json({ error: err.message });
-//   }
-//   if (err.type === "entity.too.large") {
-//     return res.status(413).json({ error: "Тело запроса больше 16 КБ" });
-//   }
-//   if (err.type === "entity.parse.failed") {
-//     return res.status(400).json({ error: "Невалидный JSON" });
-//   }
-//   if (err.status >= 400 && err.status < 500) {
-//     return res.status(400).json({ error: "Невалидный запрос" });
-//   }
-//   console.error(err);
-//   res.status(500).json({ error: "Внутренняя ошибка сервера" });
-// });
+app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
+  if (res.headersSent) return next(err);
+
+  if (err instanceof Error) {
+    // Ошибки body-parser приходят с полем type.
+    const type = (err as Error & { type?: string }).type;
+    if (type === "entity.too.large") {
+      return res.status(413).json({ error: "Тело запроса больше 16 КБ" });
+    }
+    if (type === "entity.parse.failed") {
+      return res
+        .status(400)
+        .json({ error: `Невалидный JSON: ${err.message}` });
+    }
+
+    // Наши ошибки начинаются с кода: "400. ...", "404. ...", "409. ...".
+    const match = /^(\d{3})\.\s*(.*)$/s.exec(err.message);
+    if (match?.[1] && match[2] !== undefined) {
+      return res.status(Number(match[1])).json({ error: match[2] });
+    }
+  }
+
+  console.error(err);
+  res.status(500).json({ error: "Внутренняя ошибка сервера" });
+});
 
 app.listen(PORT, () => {
   console.log(`Сервер: http://localhost:${PORT}  (данные: ${DATA_FILE})`);
