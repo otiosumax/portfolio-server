@@ -1,5 +1,7 @@
-
 .env
+
+data.json
+server.example.ts
 
 node_modules/
 dist/
