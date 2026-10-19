@@ -8,7 +8,9 @@
   "main": "server.ts",
   "scripts": {
     "dev": "node src/server.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "docker_build": "docker build -t otiosumax/portfolio-server:v1 .",
+    "docker_run": "docker run -d --name portfolio-server --init -p 3000:3000 -e PORT=3000 -e DATA_FILE=/data/data.json -v portfolio-data:/data --restart unless-stopped otiosumax/portfolio-server:v1"
   },
   "dependencies": {
     "@types/express": "^5.0.6",

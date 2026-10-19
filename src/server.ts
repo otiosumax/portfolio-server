@@ -5,7 +5,7 @@ import type { NextFunction, Request, Response } from "express";
 import type { ServerResponse } from "http";
 
 // подгрузка переменных окружения
-process.loadEnvFile(".env");
+if (fs.existsSync(".env")) process.loadEnvFile(".env");
 const PORT = process.env.PORT ?? 3000;
 const DATA_FILE = process.env.DATA_FILE ?? "./data.json";
 const ID_RE = /^[A-Za-z0-9]+$/;
@@ -225,9 +225,7 @@ app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
       return res.status(413).json({ error: "Тело запроса больше 16 КБ" });
     }
     if (type === "entity.parse.failed") {
-      return res
-        .status(400)
-        .json({ error: `Невалидный JSON: ${err.message}` });
+      return res.status(400).json({ error: `Невалидный JSON: ${err.message}` });
     }
 
     // Наши ошибки начинаются с кода: "400. ...", "404. ...", "409. ...".

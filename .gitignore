@@ -5,3 +5,4 @@ server.example.ts
 
 node_modules/
 dist/
+.DS_Store/

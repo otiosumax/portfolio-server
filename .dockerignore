@@ -1,0 +1,19 @@
+node_modules
+dist
+npm-debug.log*
+.DS_Store
+
+# секреты и локальные данные — в образ не попадают
+.env
+.env.*
+data
+data.json
+data.json.tmp
+
+# служебное
+.git
+.gitignore
+.dockerignore
+compose*.yaml
+Dockerfile
+*.md
